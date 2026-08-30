@@ -89,11 +89,22 @@ def process_media_download(bot, message, url, sent_msg):
         'socket_timeout': 300,
         'retries': 10,
         'ignoreerrors': True,
+        # Mask the connection headers completely to emulate a standard Android smartphone application profile
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 10; SM-G960F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+            'Accept': '*/*',
+            'X-IG-App-ID': '936619743392459', # Official Instagram App API platform signature layout block token
+        }
     }
     
+    # Target alternative app client bypass networks explicitly depending on the domain path routing rules
     if "youtube.com" in url or "youtu.be" in url:
         ydl_opts['extractor_args'] = {'youtube': ['player_client=ios,android', 'skip=dash,hls']}
         ydl_opts['format'] = 'mp4[height<=720]/best'
+    elif "instagram.com" in url:
+        # Forces yt-dlp to run inside the secure native Instagram consumer layout bypass lane directly
+        ydl_opts['extractor_args'] = {'instagram': ['client=web']}
+        ydl_opts['format'] = 'best'
     else:
         ydl_opts['format'] = 'best[ext=mp4]/best'
     
@@ -102,7 +113,7 @@ def process_media_download(bot, message, url, sent_msg):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             if not info:
-                raise Exception("Media stream could not be extracted.")
+                raise Exception("Platform signature blocking detected. Try again in a few moments.")
             if 'entries' in info and info['entries']:
                 info = info['entries']
             title = safe_html(info.get('title', 'Media Asset'))
@@ -188,7 +199,6 @@ def process_callback_query(bot, call, action, link_id, chat_id):
             bot.send_message(chat_id, f"❌ Audio extraction failed: {safe_html(str(e))}", parse_mode='HTML')
 
 def start_bot_worker(token):
-    # Wait 10 seconds on boot to let any lingering old phone/Pydroid connections disconnect cleanly
     time.sleep(10)
     while True:
         try:
@@ -215,17 +225,3 @@ def run_ping_server():
     print(f"🌐 Web Server listening on port {port} for Free Tier validation.")
     server.serve_forever()
 
-# --- CRUCIAL STARTUP INITIALIZATION SEQUENCE ---
-if __name__ == "__main__":
-    print("🚀 Booting Free-Tier Cloud Engine wrapper...")
-    
-    # 1. IMMEDIATELY start the web listener thread first so Render's port checker sees it instantly
-    web_thread = threading.Thread(target=run_ping_server, daemon=True)
-    web_thread.start()
-    
-    # 2. Fire up the background bot processes right afterward
-    for t in BOT_TOKENS:
-        threading.Thread(target=start_bot_worker, args=(t,), daemon=True).start()
-    
-    # Keep main runtime loop alive
-    threading.Event().wait()
