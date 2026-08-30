@@ -1,3 +1,7 @@
 {
-
+# 📝 LIST YOUR TOKENS HERE
+BOT_TOKENS = [
+    "8767238002:AAEccUN-iiEylRyA5TIiF_R0bY-5U8D3I74", # QuickGetMediaBot
+    "8846335613:AAHds-dvokq3FquL2KNTY_ehOldxgFGYabk"  # OneClick_INSTA_BOT
+]
 }
