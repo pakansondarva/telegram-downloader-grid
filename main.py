@@ -5,6 +5,7 @@ import uuid
 import json
 import time
 import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import yt_dlp
@@ -138,7 +139,7 @@ def process_media_download(bot, message, url, sent_msg):
                     bot.send_photo(message.chat.id, media_file, caption=final_caption, reply_markup=markup, parse_mode='HTML', timeout=300)
             else:
                 if ext not in ['.mp4', '.mkv', '.webm', '.3gp']:
-                    forced_mp4_path = os.path.splitext(filename)[0] + ".mp4"
+                    forced_mp4_path = os.path.splitext(filename) + ".mp4"
                     os.rename(filename, forced_mp4_path)
                     filename = forced_mp4_path
                 
@@ -191,28 +192,39 @@ def process_callback_query(bot, call, action, link_id, chat_id):
 
 # --- SELF-HEALING BOT THREAD INITIATOR WORKER ---
 def start_bot_worker(token):
-    # This loop acts as a protective shield against connection timeouts
     while True:
         try:
             instance = telebot.TeleBot(token, threaded=False)
             telebot.apihelper.CONNECT_TIMEOUT = 300
             telebot.apihelper.READ_TIMEOUT = 300
             register_bot_logic(instance)
-            
-            bot_username = instance.get_me().username
-            print(f"🤖 Bot Online: @{bot_username}")
-            
-            # Start monitoring polling connection
+            print(f"🤖 Bot Online: @{instance.get_me().username}")
             instance.infinity_polling(skip_pending=True, timeout=60, long_polling_timeout=60)
         except Exception as err:
-            # Captures network drops, waits silently, and force-reboots this lane automatically
-            print(f"⚠️ Connection dropped for a bot worker thread. Retrying configuration loop in 5 seconds... Error: {err}")
+            print(f"⚠️ Connection dropped for a bot worker thread. Retrying... Error: {err}")
             time.sleep(5)
+
+# --- 🚀 TINY WEB SERVER ADDITION FOR FREE HOSTING COMPATIBILITY ---
+class FreeTierPingHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/html")
+        self.end_headers()
+        self.wfile.write(b"Bot Grid Status: Operational & Online")
+
+def run_ping_server():
+    # Free tier hosts assign port numbers dynamically via system environments
+    port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(("0.0.0.0", port), FreeTierPingHandler)
+    print(f"🌐 Fake Web Ping Server listening on port {port} to satisfy Free Tier rules.")
+    server.serve_forever()
 
 if __name__ == "__main__":
     print("🚀 Initializing Global Multi-Bot Grid with Self-Healing Recovery...")
+    
+    # 1. Fire up the bots in background lanes
     for t in BOT_TOKENS:
         threading.Thread(target=start_bot_worker, args=(t,), daemon=True).start()
     
-    # Keep the root program script window context alive
-    threading.Event().wait()
+    # 2. Run the web loop on the main lane so the cloud hosting provider stays happy
+    run_ping_server()
