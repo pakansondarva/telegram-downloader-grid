@@ -1,4 +1,4 @@
-import os
+import os; os.system("pip install --upgrade yt-dlp")
 import re
 import html
 import uuid
