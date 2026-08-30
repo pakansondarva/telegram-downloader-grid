@@ -16,7 +16,6 @@ BOT_TOKENS = [
     "8846335613:AAHds-dvokq3FquL2KNTY_ehOldxgFGYabk"  # OneClick_INSTA_BOT
 ]
 
-# Storage configuration files and directory paths
 DOWNLOAD_DIR = "./downloads"
 DATA_FILE = "session_map.json"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
@@ -53,7 +52,6 @@ def get_link_session(link_id):
                 return None
         return None
 
-# --- MULTI-BOT COMPATIBLE MESSAGE HANDLERS ---
 def register_bot_logic(bot_instance):
     @bot_instance.message_handler(commands=['start', 'help'])
     def send_welcome(message):
@@ -80,7 +78,6 @@ def register_bot_logic(bot_instance):
             pass
         threading.Thread(target=process_callback_query, args=(bot_instance, call, action, link_id, chat_id), daemon=True).start()
 
-# --- BACKEND CORE EXTRACTION DOWNSTREAM LANES ---
 def process_media_download(bot, message, url, sent_msg):
     link_id = str(uuid.uuid4())[:8]
     save_link_session(link_id, url)
@@ -190,8 +187,9 @@ def process_callback_query(bot, call, action, link_id, chat_id):
         except Exception as e:
             bot.send_message(chat_id, f"❌ Audio extraction failed: {safe_html(str(e))}", parse_mode='HTML')
 
-# --- SELF-HEALING BOT THREAD INITIATOR WORKER ---
 def start_bot_worker(token):
+    # Wait 10 seconds on boot to let any lingering old phone/Pydroid connections disconnect cleanly
+    time.sleep(10)
     while True:
         try:
             instance = telebot.TeleBot(token, threaded=False)
@@ -201,10 +199,9 @@ def start_bot_worker(token):
             print(f"🤖 Bot Online: @{instance.get_me().username}")
             instance.infinity_polling(skip_pending=True, timeout=60, long_polling_timeout=60)
         except Exception as err:
-            print(f"⚠️ Connection dropped for a bot worker thread. Retrying... Error: {err}")
+            print(f"⚠️ Connection loop reset for thread: {err}")
             time.sleep(5)
 
-# --- 🚀 TINY WEB SERVER ADDITION FOR FREE HOSTING COMPATIBILITY ---
 class FreeTierPingHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -213,18 +210,22 @@ class FreeTierPingHandler(BaseHTTPRequestHandler):
         self.wfile.write(b"Bot Grid Status: Operational & Online")
 
 def run_ping_server():
-    # Free tier hosts assign port numbers dynamically via system environments
     port = int(os.environ.get("PORT", 8080))
     server = HTTPServer(("0.0.0.0", port), FreeTierPingHandler)
-    print(f"🌐 Fake Web Ping Server listening on port {port} to satisfy Free Tier rules.")
+    print(f"🌐 Web Server listening on port {port} for Free Tier validation.")
     server.serve_forever()
 
+# --- CRUCIAL STARTUP INITIALIZATION SEQUENCE ---
 if __name__ == "__main__":
-    print("🚀 Initializing Global Multi-Bot Grid with Self-Healing Recovery...")
+    print("🚀 Booting Free-Tier Cloud Engine wrapper...")
     
-    # 1. Fire up the bots in background lanes
+    # 1. IMMEDIATELY start the web listener thread first so Render's port checker sees it instantly
+    web_thread = threading.Thread(target=run_ping_server, daemon=True)
+    web_thread.start()
+    
+    # 2. Fire up the background bot processes right afterward
     for t in BOT_TOKENS:
         threading.Thread(target=start_bot_worker, args=(t,), daemon=True).start()
     
-    # 2. Run the web loop on the main lane so the cloud hosting provider stays happy
-    run_ping_server()
+    # Keep main runtime loop alive
+    threading.Event().wait()
