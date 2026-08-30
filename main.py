@@ -1,20 +1,36 @@
-import os; os.system("pip install --upgrade yt-dlp")
+import os
 import re
 import html
 import uuid
 import json
-import time
 import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
+import time
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import yt_dlp
 
-# 📝 LIST YOUR TOKENS HERE
-BOT_TOKENS = [
-    "8767238002:AAEccUN-iiEylRyA5TIiF_R0bY-5U8D3I74", # QuickGetMediaBot
-    "8846335613:AAHds-dvokq3FquL2KNTY_ehOldxgFGYabk"  # OneClick_INSTA_BOT
-]
+# --- 📁 AUTOMATED CONFIGURATION LOADER LINE ---
+CONFIG_FILE = "config.json"
+
+def load_bot_tokens():
+    if not os.path.exists(CONFIG_FILE):
+        # Creates a blank template automatically if the file gets misplaced
+        default_config = {"BOT_TOKENS": ["PASTE_YOUR_TOKEN_HERE"]}
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(default_config, f, indent=4)
+        print(f"⚠️ {CONFIG_FILE} was missing. Created a blank template file. Add your tokens there!")
+        return []
+    
+    try:
+        with open(CONFIG_FILE, 'r') as f:
+            config_data = json.load(f)
+            return config_data.get("BOT_TOKENS", [])
+    except Exception as e:
+        print(f"❌ Error reading config.json: {e}")
+        return []
+
+BOT_TOKENS = load_bot_tokens()
+# ------------------------------------------------
 
 DOWNLOAD_DIR = "./downloads"
 DATA_FILE = "session_map.json"
@@ -110,7 +126,7 @@ def process_media_download(bot, message, url, sent_msg):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             if not info:
-                raise Exception("Media stream could not be extracted.")
+                raise Exception("Media extraction blocked by platform network tags.")
             if 'entries' in info and info['entries']:
                 info = info['entries']
             title = safe_html(info.get('title', 'Media Asset'))
@@ -196,7 +212,6 @@ def process_callback_query(bot, call, action, link_id, chat_id):
             bot.send_message(chat_id, f"❌ Audio extraction failed: {safe_html(str(e))}", parse_mode='HTML')
 
 def start_bot_worker(token):
-    time.sleep(10)
     while True:
         try:
             instance = telebot.TeleBot(token, threaded=False)
@@ -206,26 +221,13 @@ def start_bot_worker(token):
             print(f"🤖 Bot Online: @{instance.get_me().username}")
             instance.infinity_polling(skip_pending=True, timeout=60, long_polling_timeout=60)
         except Exception as err:
-            print(f"⚠️ Connection loop reset for thread: {err}")
             time.sleep(5)
 
-class FreeTierPingHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header("Content-type", "text/html")
-        self.end_headers()
-        self.wfile.write(b"Bot Grid Status: Operational & Online")
-
-def run_ping_server():
-    port = int(os.environ.get("PORT", 8080))
-    server = HTTPServer(("0.0.0.0", port), FreeTierPingHandler)
-    print(f"🌐 Web Server listening on port {port} for Free Tier validation.")
-    server.serve_forever()
-
 if __name__ == "__main__":
-    print("🚀 Booting Free-Tier Cloud Engine wrapper...")
-    web_thread = threading.Thread(target=run_ping_server, daemon=True)
-    web_thread.start()
-    for t in BOT_TOKENS:
-        threading.Thread(target=start_bot_worker, args=(t,), daemon=True).start()
-    threading.Event().wait()
+    if not BOT_TOKENS:
+        print("❌ System halted: No tokens loaded from config.json.")
+    else:
+        print("🚀 Initializing Local Multi-Bot Network Terminal Grid...")
+        for t in BOT_TOKENS:
+            threading.Thread(target=start_bot_worker, args=(t,), daemon=True).start()
+        threading.Event().wait()
