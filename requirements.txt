@@ -1,3 +1,2 @@
 pyTelegramBotAPI
-git+https://github.com
-
+https://github.com
