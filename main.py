@@ -3,13 +3,14 @@ import re
 import html
 import uuid
 import json
-import threading
 import time
+import threading
 import requests
-telebot = __import__('telebot') # Workaround to import telebot package dynamically safely
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-# --- 📁 AUTOMATED CONFIGURATION LOADER LINE ---
+# 📝 TOKENS LOADED FROM YOUR config.json FILE
 CONFIG_FILE = "config.json"
 
 def load_bot_tokens():
@@ -17,19 +18,14 @@ def load_bot_tokens():
         default_config = {"BOT_TOKENS": ["PASTE_YOUR_TOKEN_HERE"]}
         with open(CONFIG_FILE, 'w') as f:
             json.dump(default_config, f, indent=4)
-        print(f"⚠️ {CONFIG_FILE} was missing. Created a blank template file. Add your tokens there!")
         return []
-    
     try:
         with open(CONFIG_FILE, 'r') as f:
-            config_data = json.load(f)
-            return config_data.get("BOT_TOKENS", [])
-    except Exception as e:
-        print(f"❌ Error reading config.json: {e}")
+            return json.load(f).get("BOT_TOKENS", [])
+    except Exception:
         return []
 
 BOT_TOKENS = load_bot_tokens()
-# ------------------------------------------------
 
 DOWNLOAD_DIR = "./downloads"
 DATA_FILE = "session_map.json"
@@ -61,8 +57,7 @@ def get_link_session(link_id):
         if os.path.exists(DATA_FILE):
             try:
                 with open(DATA_FILE, 'r') as f:
-                    data = json.load(f)
-                    return data.get(link_id)
+                    return json.load(f).get(link_id)
             except Exception:
                 return None
         return None
@@ -73,7 +68,7 @@ def register_bot_logic(bot_instance):
         welcome_text = (
             f"👋 <b>Welcome to {bot_instance.get_me().first_name}!</b>\n\n"
             "Send me any link from Instagram, YouTube, X, or Pinterest.\n"
-            "I will immediately fetch and send the actual playable video or photo directly!"
+            "I will immediately download it and send you the playable media card!"
         )
         bot_instance.reply_to(message, welcome_text, parse_mode='HTML')
 
@@ -93,27 +88,13 @@ def register_bot_logic(bot_instance):
             pass
         threading.Thread(target=process_callback_query, args=(bot_instance, call, action, link_id, chat_id), daemon=True).start()
 
-# --- UNBLOCKABLE FIXED EXTRACTION WORKER ---
 def process_media_download(bot, message, url, sent_msg):
     link_id = str(uuid.uuid4())[:8]
     save_link_session(link_id, url)
     filename = None
-    
     try:
-        # Utilizing a public high-fidelity API extraction node endpoint that rotates proxies instantly
         api_url = "https://cobalt.tools"
-        headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-        }
-        payload = {
-            "url": url,
-            "videoQuality": "720",
-            "downloadMode": "auto"
-        }
-        
-        response = requests.post(api_url, json=payload, headers=headers, timeout=25)
-        res_data = response.json()
+        res_data = requests.post(api_url, json={"url": url, "videoQuality": "720", "downloadMode": "auto"}, headers={"Accept": "application/json", "Content-Type": "application/json"}, timeout=25).json()
         
         if res_data.get("status") == "error":
             raise Exception(res_data.get("text", "Platform Extraction Blocked"))
@@ -122,9 +103,8 @@ def process_media_download(bot, message, url, sent_msg):
         file_text = safe_html(res_data.get("text", "Media Asset"))
         
         if not stream_url:
-            raise Exception("Media trace endpoints could not resolve.")
+            raise Exception("Media tracks failed to resolve.")
             
-        # Streams file chunk blocks down onto local storage seamlessly
         file_res = requests.get(stream_url, stream=True, timeout=90)
         ext = "mp4" if res_data.get("pickerType") != "photo" else "jpg"
         
@@ -140,7 +120,7 @@ def process_media_download(bot, message, url, sent_msg):
                 InlineKeyboardButton("🎵 Extract MP3 Audio", callback_data=f"aud|{link_id}"),
                 InlineKeyboardButton("📝 Copy Full Caption", callback_data=f"txt|{link_id}")
             )
-            final_caption = f"🎬 <b>{file_text[:60]}...</b>\n\nDownloaded via Network Grid ✨"
+            final_caption = f"🎬 <b>{file_text[:60]}...</b>\n\nDownloaded via Cloud Network ✨"
             
             try:
                 bot.delete_message(message.chat.id, sent_msg.message_id)
@@ -153,9 +133,6 @@ def process_media_download(bot, message, url, sent_msg):
                 else:
                     bot.send_video(message.chat.id, media_file, caption=final_caption, reply_markup=markup, parse_mode='HTML')
             os.remove(filename)
-        else:
-            raise Exception("Data conversion stream returned empty.")
-            
     except Exception as e:
         try:
             bot.edit_message_text(f"❌ <b>Extraction failed:</b> {safe_html(str(e))}", chat_id=message.chat.id, message_id=sent_msg.message_id, parse_mode='HTML')
@@ -169,50 +146,60 @@ def process_callback_query(bot, call, action, link_id, chat_id):
     if not target_url:
         bot.send_message(chat_id, "❌ <b>Session expired!</b>", parse_mode='HTML')
         return
-        
     if action == "txt":
-        bot.send_message(chat_id, f"🔗 <b>Source asset verification link trace:</b>\n\n<code>{target_url}</code>", parse_mode='HTML')
+        bot.send_message(chat_id, f"🔗 <b>Source URL:</b>\n\n<code>{target_url}</code>", parse_mode='HTML')
     elif action == "aud":
-        status_msg = bot.send_message(chat_id, "📥 <i>Isolating audio frequencies... Please wait.</i>", parse_mode='HTML')
+        status_msg = bot.send_message(chat_id, "📥 <i>Extracting audio track...</i>", parse_mode='HTML')
         filename = None
         try:
             api_url = "https://cobalt.tools"
-            payload = {"url": target_url, "downloadMode": "audio"}
-            res = requests.post(api_url, json=payload, headers={"Accept": "application/json", "Content-Type": "application/json"}, timeout=25).json()
-            
+            res = requests.post(api_url, json={"url": target_url, "downloadMode": "audio"}, headers={"Accept": "application/json", "Content-Type": "application/json"}, timeout=25).json()
             if res.get("status") == "error" or not res.get("url"):
-                raise Exception("Audio stream format missing.")
-                
+                raise Exception("Audio stream missing.")
             file_res = requests.get(res.get("url"), stream=True, timeout=90)
             filename = os.path.join(DOWNLOAD_DIR, f"audio_{link_id}.mp3")
             with open(filename, 'wb') as f:
                 for chunk in file_res.iter_content(chunk_size=8192):
                     f.write(chunk)
-                    
             with open(filename, 'rb') as media_file:
                 bot.send_audio(chat_id, media_file, caption="🎵 <b>Audio track isolated!</b>", parse_mode='HTML')
             os.remove(filename)
             bot.delete_message(chat_id, status_msg.message_id)
         except Exception as e:
-            bot.edit_message_text(f"❌ Audio extraction failed: {safe_html(str(e))}", chat_id=chat_id, message_id=status_msg.message_id, parse_mode='HTML')
-            if filename and os.path.exists(filename):
-                os.remove(filename)
+            bot.send_message(chat_id, f"❌ Audio failed: {safe_html(str(e))}", parse_mode='HTML')
 
 def start_bot_worker(token):
+    # CRUCIAL DELAY: Gives Render exactly 15 seconds to kill the old container and free your tokens completely
+    time.sleep(15)
     while True:
         try:
             instance = telebot.TeleBot(token, threaded=False)
             register_bot_logic(instance)
             print(f"🤖 Bot Online: @{instance.get_me().username}")
             instance.infinity_polling(skip_pending=True, timeout=40, long_polling_timeout=40)
-        except Exception as err:
-            time.sleep(3)
+        except Exception:
+            time.sleep(5)
+
+class FreeTierPingHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/html")
+        self.end_headers()
+        self.wfile.write(b"Bot Grid Status: Operational & Online")
+
+def run_ping_server():
+    port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(("0.0.0.0", port), FreeTierPingHandler)
+    server.serve_forever()
 
 if __name__ == "__main__":
-    if not BOT_TOKENS:
-        print("❌ System halted: No tokens loaded from config.json.")
-    else:
-        print("🚀 Initializing Local Multi-Bot Network Terminal Grid...")
-        for t in BOT_TOKENS:
-            threading.Thread(target=start_bot_worker, args=(t,), daemon=True).start()
-        threading.Event().wait()
+    print("🚀 Initializing Free-Tier Validation Port Server...")
+    # 1. Start web server FIRST to pass Render's port checker immediately
+    web_thread = threading.Thread(target=run_ping_server, daemon=True)
+    web_thread.start()
+    
+    # 2. Boot background bots after validation passes
+    for t in BOT_TOKENS:
+        threading.Thread(target=start_bot_worker, args=(t,), daemon=True).start()
+        
+    threading.Event().wait()
