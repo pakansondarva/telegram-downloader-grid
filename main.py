@@ -13,19 +13,19 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 # --- 📁 AUTOMATED CREDENTIAL LOADER CONFIGURATION ---
 CONFIG_FILE = "config.json"
 
-def load_bot_tokens():
+def load_credentials():
     if not os.path.exists(CONFIG_FILE):
-        default_config = {"BOT_TOKENS": ["PASTE_YOUR_TOKEN_HERE"]}
-        with open(CONFIG_FILE, 'w') as f:
-            json.dump(default_config, f, indent=4)
-        return []
+        print(f"❌ Core Halt: {CONFIG_FILE} is missing from the directory tree.")
+        return "", []
     try:
         with open(CONFIG_FILE, 'r') as f:
-            return json.load(f).get("BOT_TOKENS", [])
-    except Exception:
-        return []
+            data = json.load(f)
+            return data.get("RAPIDAPI_KEY", ""), data.get("BOT_TOKENS", [])
+    except Exception as e:
+        print(f"❌ Error parsing {CONFIG_FILE}: {e}")
+        return "", []
 
-BOT_TOKENS = load_bot_tokens()
+RAPIDAPI_KEY, BOT_TOKENS = load_credentials()
 # ---------------------------------------------------
 
 DOWNLOAD_DIR = "./downloads"
@@ -112,7 +112,7 @@ def process_media_download(bot, message, url, sent_msg):
                 video_matches = re.findall(r'href=\\?"(https://[^"]+&oe=[^"]+)\\?"', html_content)
                 
             if video_matches:
-                # FIXED: Grabs the single string result out of the extracted list before running string replacement
+                # ✅ FIXED: Selects the first string match element safely out of the list before running replace
                 stream_url = video_matches[0].replace('\\', '')
             else:
                 raise Exception("Private media signature challenge block. Try again.")
@@ -228,4 +228,3 @@ def run_ping_server():
     server.serve_forever()
 
 if __name__ == "__main__":
-    print("🚀 Initializing Free-Tier Validation Port Server...")
