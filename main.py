@@ -97,30 +97,27 @@ def process_media_download(bot, message, url, sent_msg):
     title_text = "Media Asset"
     ext = "mp4"
 
-    # 🚀 HIGH-SPEED UNBLOCKABLE PLATFORM PARSER GRID
     try:
         if "instagram.com" in url or "facebook.com" in url:
-            # Route directly through SnapInsta micro-servers using direct emulation payloads
             api_url = "https://snapinsta.app"
             req_headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
                 "Referer": "https://snapinsta.app"
             }
             res = requests.post(api_url, data={"url": url, "action": "post"}, headers=req_headers, timeout=15)
             html_content = res.text
             
-            # Extract the raw video link safely out of the encrypted wrapper matching strings
             video_matches = re.findall(r'href=\\?"(https://[^"]+download=1[^"]+)\\?"', html_content)
             if not video_matches:
                 video_matches = re.findall(r'href=\\?"(https://[^"]+&oe=[^"]+)\\?"', html_content)
                 
             if video_matches:
+                # FIXED: Grabs the single string result out of the extracted list before running string replacement
                 stream_url = video_matches[0].replace('\\', '')
             else:
                 raise Exception("Private media signature challenge block. Try again.")
                 
         else:
-            # Safe failover mirror lane logic block for other sites (YouTube/Pinterest)
             cobalt_servers = ["https://unblockit.pro", "https://kuko.rip"]
             for srv in cobalt_servers:
                 try:
@@ -138,8 +135,7 @@ def process_media_download(bot, message, url, sent_msg):
         if not stream_url:
             raise Exception("All parsing lanes failed to extract the asset. The link format might be broken.")
 
-        # Download the file from the safe extracted stream url link
-        file_res = requests.get(stream_url, stream=True, timeout=90, headers={"User-Agent": "Mozilla/5.0"})
+        file_res = requests.get(stream_url, stream=True, timeout=90, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
         filename = os.path.join(DOWNLOAD_DIR, f"{link_id}_output.{ext}")
         
         with open(filename, 'wb') as f:
@@ -228,3 +224,8 @@ class FreeTierPingHandler(BaseHTTPRequestHandler):
 
 def run_ping_server():
     port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(("0.0.0.0", port), FreeTierPingHandler)
+    server.serve_forever()
+
+if __name__ == "__main__":
+    print("🚀 Initializing Free-Tier Validation Port Server...")
