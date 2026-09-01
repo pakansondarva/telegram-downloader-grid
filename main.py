@@ -68,7 +68,7 @@ def register_bot_logic(bot_instance):
     def send_welcome(message):
         welcome_text = (
             f"👋 <b>Welcome to {bot_instance.get_me().first_name}!</b>\n\n"
-            "Send me any link from Instagram, YouTube, X, or Pinterest.\n"
+            "Send me any link from Instagram, YouTube, Facebook, or Pinterest.\n"
             "I will immediately download it and send you the playable media card!"
         )
         bot_instance.reply_to(message, welcome_text, parse_mode='HTML')
@@ -93,36 +93,53 @@ def process_media_download(bot, message, url, sent_msg):
     link_id = str(uuid.uuid4())[:8]
     save_link_session(link_id, url)
     filename = None
-    
-    # 🌟 ENTERPRISE COBALT SERVER MIRROR GRID OVERRIDE
-    # Loops through completely separate networks to guarantee a 100% bypass rate
-    cobalt_servers = [
-        "https://cobalt.tools",
-        "https://unblockit.pro",
-        "https://kuko.rip"
-    ]
-    
-    res_data = None
-    for api_url in cobalt_servers:
-        try:
-            response = requests.post(api_url, json={"url": url, "videoQuality": "720", "downloadMode": "auto"}, headers={"Accept": "application/json", "Content-Type": "application/json"}, timeout=12)
-            if response.ok:
-                potential_data = response.json()
-                if potential_data.get("status") != "error" and potential_data.get("url"):
-                    res_data = potential_data
-                    break
-        except Exception:
-            continue
+    stream_url = None
+    title_text = "Media Asset"
+    ext = "mp4"
 
+    # 🚀 HIGH-SPEED UNBLOCKABLE PLATFORM PARSER GRID
     try:
-        if not res_data or not res_data.get("url"):
-            raise Exception("All global processing servers are currently rate-limited. Try re-sending the link in a moment.")
+        if "instagram.com" in url or "facebook.com" in url:
+            # Route directly through SnapInsta micro-servers using direct emulation payloads
+            api_url = "https://snapinsta.app"
+            req_headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Referer": "https://snapinsta.app"
+            }
+            res = requests.post(api_url, data={"url": url, "action": "post"}, headers=req_headers, timeout=15)
+            html_content = res.text
             
-        stream_url = res_data.get("url")
-        file_text = safe_html(res_data.get("text", "Media Asset"))
-        ext = "mp4" if res_data.get("pickerType") != "photo" else "jpg"
-        
-        file_res = requests.get(stream_url, stream=True, timeout=90)
+            # Extract the raw video link safely out of the encrypted wrapper matching strings
+            video_matches = re.findall(r'href=\\?"(https://[^"]+download=1[^"]+)\\?"', html_content)
+            if not video_matches:
+                video_matches = re.findall(r'href=\\?"(https://[^"]+&oe=[^"]+)\\?"', html_content)
+                
+            if video_matches:
+                stream_url = video_matches[0].replace('\\', '')
+            else:
+                raise Exception("Private media signature challenge block. Try again.")
+                
+        else:
+            # Safe failover mirror lane logic block for other sites (YouTube/Pinterest)
+            cobalt_servers = ["https://unblockit.pro", "https://kuko.rip"]
+            for srv in cobalt_servers:
+                try:
+                    response = requests.post(srv, json={"url": url, "videoQuality": "720", "downloadMode": "auto"}, headers={"Accept": "application/json", "Content-Type": "application/json"}, timeout=12)
+                    if response.ok:
+                        data = response.json()
+                        if data.get("url"):
+                            stream_url = data.get("url")
+                            title_text = data.get("text", "Media Asset")
+                            ext = "mp4" if data.get("pickerType") != "photo" else "jpg"
+                            break
+                except Exception:
+                    continue
+
+        if not stream_url:
+            raise Exception("All parsing lanes failed to extract the asset. The link format might be broken.")
+
+        # Download the file from the safe extracted stream url link
+        file_res = requests.get(stream_url, stream=True, timeout=90, headers={"User-Agent": "Mozilla/5.0"})
         filename = os.path.join(DOWNLOAD_DIR, f"{link_id}_output.{ext}")
         
         with open(filename, 'wb') as f:
@@ -136,7 +153,7 @@ def process_media_download(bot, message, url, sent_msg):
                 InlineKeyboardButton("🎵 Extract MP3 Audio", callback_data=f"aud|{link_id}"),
                 InlineKeyboardButton("📝 Copy Full Caption", callback_data=f"txt|{link_id}")
             )
-            final_caption = f"🎬 <b>{file_text[:60]}...</b>\n\nDownloaded via Network Grid ✨"
+            final_caption = f"🎬 <b>{title_text[:50]}...</b>\n\nDownloaded via Enterprise Network Grid ✨"
             
             try:
                 bot.delete_message(message.chat.id, sent_msg.message_id)
@@ -149,6 +166,9 @@ def process_media_download(bot, message, url, sent_msg):
                 else:
                     bot.send_video(message.chat.id, media_file, caption=final_caption, reply_markup=markup, parse_mode='HTML')
             os.remove(filename)
+        else:
+            raise Exception("The server returned an empty binary file payload track.")
+            
     except Exception as e:
         try:
             bot.edit_message_text(f"❌ <b>Extraction failed:</b> {safe_html(str(e))}", chat_id=message.chat.id, message_id=sent_msg.message_id, parse_mode='HTML')
@@ -167,25 +187,14 @@ def process_callback_query(bot, call, action, link_id, chat_id):
     elif action == "aud":
         status_msg = bot.send_message(chat_id, "📥 <i>Extracting audio track...</i>", parse_mode='HTML')
         filename = None
-        
-        cobalt_servers = ["https://cobalt.tools", "https://unblockit.pro", "https://kuko.rip"]
-        res = None
-        for api_url in cobalt_servers:
-            try:
-                response = requests.post(api_url, json={"url": target_url, "downloadMode": "audio"}, headers={"Accept": "application/json", "Content-Type": "application/json"}, timeout=12)
-                if response.ok:
-                    potential_res = response.json()
-                    if potential_res.get("status") != "error" and potential_res.get("url"):
-                        res = potential_res
-                        break
-            except Exception:
-                continue
-
         try:
-            if not res or not res.get("url"):
-                raise Exception("Audio stream format missing or unextractable for this link.")
+            api_url = "https://kuko.rip"
+            response = requests.post(api_url, json={"url": target_url, "downloadMode": "audio"}, headers={"Accept": "application/json", "Content-Type": "application/json"}, timeout=15).json()
+            
+            if response.get("status") == "error" or not response.get("url"):
+                raise Exception("Audio stream track completely missing on mirror cluster nodes.")
                 
-            file_res = requests.get(res.get("url"), stream=True, timeout=90)
+            file_res = requests.get(response.get("url"), stream=True, timeout=90)
             filename = os.path.join(DOWNLOAD_DIR, f"audio_{link_id}.mp3")
             with open(filename, 'wb') as f:
                 for chunk in file_res.iter_content(chunk_size=8192):
@@ -196,6 +205,8 @@ def process_callback_query(bot, call, action, link_id, chat_id):
             bot.delete_message(chat_id, status_msg.message_id)
         except Exception as e:
             bot.send_message(chat_id, f"❌ Audio failed: {safe_html(str(e))}", parse_mode='HTML')
+            if filename and os.path.exists(filename):
+                os.remove(filename)
 
 def start_bot_worker(token):
     time.sleep(15)
@@ -217,17 +228,3 @@ class FreeTierPingHandler(BaseHTTPRequestHandler):
 
 def run_ping_server():
     port = int(os.environ.get("PORT", 8080))
-    server = HTTPServer(("0.0.0.0", port), FreeTierPingHandler)
-    server.serve_forever()
-
-if __name__ == "__main__":
-    print("🚀 Initializing Free-Tier Validation Port Server...")
-    web_thread = threading.Thread(target=run_ping_server, daemon=True)
-    web_thread.start()
-    
-    if not BOT_TOKENS:
-        print("❌ Core Halt: config.json is incomplete or missing bot tokens.")
-    else:
-        for t in BOT_TOKENS:
-            threading.Thread(target=start_bot_worker, args=(t,), daemon=True).start()
-        threading.Event().wait()
