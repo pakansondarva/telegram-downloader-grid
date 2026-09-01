@@ -112,8 +112,8 @@ def process_media_download(bot, message, url, sent_msg):
                 video_matches = re.findall(r'href=\\?"(https://[^"]+&oe=[^"]+)\\?"', html_content)
                 
             if video_matches:
-                # ✅ FIXED: Selects the first string match element safely out of the list before running replace
-                stream_url = video_matches[0].replace('\\', '')
+                # Explicitly target item 0 in the list container safely
+                stream_url = str(video_matches[0]).replace('\\', '')
             else:
                 raise Exception("Private media signature challenge block. Try again.")
                 
@@ -228,3 +228,4 @@ def run_ping_server():
     server.serve_forever()
 
 if __name__ == "__main__":
+    print("🚀 Initializing Free-Tier Validation Port Server...")
